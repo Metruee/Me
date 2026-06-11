@@ -1,3 +1,12 @@
+# ── 第一阶段：构建前端 ──
+FROM node:20-alpine AS frontend-builder
+WORKDIR /src
+COPY frontend/package.json frontend/package-lock.json ./
+RUN npm install
+COPY frontend/ ./
+RUN npm run build
+
+# ── 第二阶段：运行环境 ──
 FROM python:3.11-slim
 
 WORKDIR /app
@@ -9,8 +18,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 # 后端源码
 COPY backend/main.py .
 
-# 前端构建产物（需要在容器外先执行 npm run build）
-COPY frontend/dist/ /app/static/
+# 前端构建产物（从第一阶段复制）
+COPY --from=frontend-builder /src/dist/ /app/static/
 
 EXPOSE 6868
 
