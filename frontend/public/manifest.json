@@ -1,0 +1,16 @@
+{
+  "name": "自知 · Me",
+  "short_name": "自知",
+  "description": "个人智能分析平台",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#e8f5e9",
+  "theme_color": "#388e3c",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

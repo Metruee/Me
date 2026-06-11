@@ -1,0 +1,27 @@
+# Me · 自知 — Docker Compose（单容器）
+#
+# 启动：
+#   docker compose up -d
+#   open http://localhost:6868
+
+services:
+  # ============================================================
+  # Me — FastAPI 单体容器（后端 + 前端静态文件 + ChromaDB）
+  # ============================================================
+  me:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: me
+    environment:
+      - ME_HOME=/app/me_data
+    ports:
+      - "6868:6868"
+    volumes:
+      - ./me_data:/app/me_data
+      - ./me_data/chroma:/app/chroma_data
+      - ./../reports:/app/reports
+    restart: unless-stopped
+
+volumes:
+  chroma_data:
