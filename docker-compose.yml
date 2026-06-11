@@ -1,27 +1,31 @@
 # Me · 自知 — Docker Compose（单容器）
 #
-# 启动：
-#   docker compose up -d
-#   open http://localhost:6868
+# 启动前准备：
+#   1. cd 04-APP/frontend && npm install && npm run build
+#   2. cp .env.example .env 并填写 LLM 配置
+#   3. docker compose up -d
+#   4. open http://你的NAS_IP:6868
+#
+# 升级说明：
+#   数据通过 volumes 持久化到宿主机 me_data/ 和 reports/ 目录
+#   升级只需 docker compose down && docker compose up -d --build
+#   不会丢失数据
 
 services:
-  # ============================================================
-  # Me — FastAPI 单体容器（后端 + 前端静态文件 + ChromaDB）
-  # ============================================================
   me:
     build:
-      context: ./backend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: backend/Dockerfile
     container_name: me
+    env_file:
+      - .env
     environment:
       - ME_HOME=/app/me_data
+      - ME_APP_ROOT=/app
+      - ME_STATIC_DIR=/app/static
     ports:
       - "6868:6868"
     volumes:
-      - ./me_data:/app/me_data
-      - ./me_data/chroma:/app/chroma_data
-      - ./../reports:/app/reports
+      - ./me_data:/app/me_data  # 数据库 + ChromaDB + 技能文件（持久化）
+      - ./reports:/app/reports    # 复盘报告（持久化）
     restart: unless-stopped
-
-volumes:
-  chroma_data:
