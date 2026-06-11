@@ -22,6 +22,43 @@ Vue 3 + FastAPI + SQLite + ChromaDB + Docker
 
 ## 安装
 
+### Docker（推荐，NAS / 服务器一键部署）
+
+在 NAS 上创建 `docker-compose.yml`：
+
+```yaml
+services:
+  me:
+    build:
+      context: https://github.com/Metruee/Me.git
+      dockerfile: backend/Dockerfile
+    container_name: me
+    environment:
+      - ME_HOME=/app/me_data
+      - ME_APP_ROOT=/app
+      - ME_STATIC_DIR=/app/static
+      - LLM_API_BASE=http://你的模型IP:11434/v1
+      - LLM_MODEL=qwen2.5:7b
+      - EMBEDDING_API_BASE=http://你的模型IP:11434/v1
+      - EMBEDDING_MODEL=nomic-embed-text
+    ports:
+      - "6868:6868"
+    volumes:
+      - ./me_data:/app/me_data
+      - ./reports:/app/reports
+      - ./chroma_data:/app/chroma_data
+      - ./uploads:/app/data/uploads
+    restart: unless-stopped
+```
+
+然后 `docker compose up -d`，访问 `http://NAS_IP:6868`。
+
+Docker 会自动从 GitHub 拉源码、编译前端、安装 Python 依赖。数据全部持久化在本地目录，升级不丢失。
+
+> 如果 GitHub 直连不稳定，可以先 `git clone https://github.com/Metruee/Me.git && cd Me`，然后用 repo 自带的 `docker-compose.yml`（context 为 `.`）本地构建。
+
+### 开发环境
+
 ```bash
 # 1. 安装依赖
 cd 04-APP/backend
@@ -33,12 +70,8 @@ npm install
 # 2. 构建前端
 npm run build
 
-# 3. 配置环境变量（.env 或直接 export）
-export ME_HOME=/path/to/data        # 数据目录
-export LLM_API_BASE=http://localhost:11434/v1  # Ollama 或其他本地 LLM
-export LLM_MODEL=qwen2.5:7b
-export EMBEDDING_API_BASE=http://localhost:11434/v1
-export EMBEDDING_MODEL=nomic-embed-text
+# 3. 配置环境变量
+# 在 backend 目录下或系统环境变量中设置 LLM_API_BASE 等
 
 # 4. 启动
 cd ../backend
