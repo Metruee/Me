@@ -1,0 +1,28 @@
+# Me · 自知 — 一键部署（复制到 NAS 任意空目录，docker compose up -d）
+#
+# 首次启动 Docker 自动从 GitHub 拉源码 → 编译前端 → 装 Python 依赖 → 启动
+# 升级：docker compose down && docker compose up -d --build
+# 数据全部持久化在本地目录，升级不丢失
+
+services:
+  me:
+    build:
+      context: https://github.com/Metruee/Me.git
+      dockerfile: backend/Dockerfile
+    container_name: me
+    environment:
+      - ME_HOME=/app/me_data
+      - ME_APP_ROOT=/app
+      - ME_STATIC_DIR=/app/static
+      - LLM_API_BASE=http://你的模型IP:11434/v1
+      - LLM_MODEL=qwen2.5:7b
+      - EMBEDDING_API_BASE=http://你的模型IP:11434/v1
+      - EMBEDDING_MODEL=nomic-embed-text
+    ports:
+      - "6868:6868"
+    volumes:
+      - ./me_data:/app/me_data
+      - ./reports:/app/reports
+      - ./chroma_data:/app/chroma_data
+      - ./uploads:/app/data/uploads
+    restart: unless-stopped
