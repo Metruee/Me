@@ -2012,19 +2012,30 @@ def _parse_file(file_path: Path) -> str:
         return f"[文件: {file_path.name}] 无法识别格式。"
 
 
+# 上传解析任务内存缓存（容器重启后清空，不影响核心功能）
+_parsing_tasks = {}
+
+def _clean_stale_tasks():
+    """清理超过 10 分钟的过期任务"""
+    now = time.time()
+    stale = [tid for tid, t in list(_parsing_tasks.items()) if now - t.get("started", 0) > 600]
+    for tid in stale:
+        _parsing_tasks.pop(tid, None)
+
 @app.post("/api/upload")
 async def upload_file(file: UploadFile = File(...)):
     """
-    上传文件 → 保存 + 解析文本内容 → 立即返回。
-    前端收到解析内容后作为 chat 消息发送给专家。
+    上传文件 → 保存立即返回 → 后台异步解析。
+    前端通过 /api/upload/status/{task_id} 轮询解析结果，
+    拿到解析文本后作为 chat 消息发送给专家。
     """
     saved_name = file.filename or "upload"
     saved_path = UPLOAD_DIR / saved_name
     UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+    ext = saved_path.suffix.lower()
     # 重名时自动加序号
     if saved_path.exists():
         stem = saved_path.stem
-        ext = saved_path.suffix
         i = 1
         while (UPLOAD_DIR / f"{stem} ({i}){ext}").exists():
             i += 1
@@ -2032,16 +2043,40 @@ async def upload_file(file: UploadFile = File(...)):
         saved_path = UPLOAD_DIR / saved_name
     with saved_path.open("wb") as f:
         shutil.copyfileobj(file.file, f)
-    parsed_text = _parse_file(saved_path)
+
+    # 后台异步解析，避免大文件/慢解析阻塞响应
+    task_id = f"parse_{uuid.uuid4().hex[:12]}"
+    _clean_stale_tasks()
+    _parsing_tasks[task_id] = {"status": "parsing", "filename": saved_name, "started": time.time()}
+
+    def _do_parse():
+        try:
+            text = _parse_file(saved_path)
+            _parsing_tasks[task_id] = {
+                "status": "done", "filename": saved_name,
+                "parsed_text": text[:MAX_PARSE_CHARS],
+                "parsed_length": len(text),
+                "truncated": len(text) > MAX_PARSE_CHARS,
+            }
+        except Exception as e:
+            logger.warning(f"Background parse failed for {saved_name}: {e}")
+            _parsing_tasks[task_id] = {"status": "error", "filename": saved_name, "error": str(e)}
+
+    threading.Thread(target=_do_parse, daemon=True).start()
     return {
         "ok": True,
-        "filename": file.filename,
-        "saved_as": saved_name,
-        "file_type": FILE_PARSERS.get(ext, "unknown"),
-        "parsed_length": len(parsed_text),
-        "parsed_text": parsed_text[:MAX_PARSE_CHARS],
-        "truncated": len(parsed_text) > MAX_PARSE_CHARS,
+        "filename": saved_name,
+        "task_id": task_id,
+        "status": "parsing",
     }
+
+@app.get("/api/upload/status/{task_id}")
+def upload_status(task_id: str):
+    """轮询上传文件的解析状态"""
+    task = _parsing_tasks.get(task_id)
+    if not task:
+        return {"ok": False, "error": "未知任务或已过期"}
+    return {"ok": True, **{k: v for k, v in task.items() if k != "started"}}
 
 
 @app.get("/api/uploads/{filename}")

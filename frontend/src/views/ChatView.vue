@@ -200,16 +200,49 @@ async function handleUpload(event: Event) {
   uploadingFile.value = true
   uploadFileName.value = file.name
   try {
+    // Step 1: 上传文件（立即返回 task_id）
     const formData = new FormData()
     formData.append('file', file)
-    const res = await fetch('/api/upload', { method: 'POST', body: formData })
-    const data = await res.json()
-    if (data.ok && data.parsed_text) {
-      const truncated = data.truncated ? '（内容已截断前8000字）' : ''
-      const msg = `我上传了一个文件「${file.filename}」${truncated}，内容如下：\n\n---\n${data.parsed_text}\n---\n\n请分析此文件。`
+    const uploadRes = await fetch('/api/upload', { method: 'POST', body: formData })
+    const uploadData = await uploadRes.json()
+    if (!uploadData.ok) {
+      messages.value.push({ type: 'system', content: `文件上传失败：${uploadData.error || '未知错误'}`, timestamp: Date.now() })
+      uploadingFile.value = false
+      input.value = ''
+      return
+    }
+
+    // Step 2: 轮询解析结果（最多 60s）
+    const taskId = uploadData.task_id
+    let parsedText = ''
+    let truncated = false
+    for (let i = 0; i < 60; i++) {
+      await new Promise(r => setTimeout(r, 1000))
+      try {
+        const statusRes = await fetch(`/api/upload/status/${taskId}`)
+        const statusData = await statusRes.json()
+        if (statusData.status === 'done') {
+          parsedText = statusData.parsed_text || ''
+          truncated = statusData.truncated || false
+          break
+        }
+        if (statusData.status === 'error') {
+          messages.value.push({ type: 'system', content: `文件解析失败：${statusData.error || '未知错误'}`, timestamp: Date.now() })
+          uploadingFile.value = false
+          input.value = ''
+          return
+        }
+      } catch {
+        // 轮询网络抖动，继续重试
+      }
+    }
+
+    if (parsedText) {
+      const truncMsg = truncated ? '（内容已截断）' : ''
+      const msg = `我上传了一个文件「${uploadData.filename}」${truncMsg}，内容如下：\n\n---\n${parsedText}\n---\n\n请分析此文件。`
       onSend(msg, true)
     } else {
-      messages.value.push({ type: 'system', content: '文件上传失败：无法解析文件内容。', timestamp: Date.now() })
+      messages.value.push({ type: 'system', content: '文件解析超时，请稍后从档案馆重新解析。', timestamp: Date.now() })
     }
   } catch {
     messages.value.push({ type: 'system', content: '文件上传失败，请检查网络。', timestamp: Date.now() })

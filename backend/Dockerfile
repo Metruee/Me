@@ -14,6 +14,7 @@ WORKDIR /app
 
 # Python 依赖
 COPY backend/requirements.txt .
+RUN apt-get update && apt-get install -y --no-install-recommends poppler-utils tesseract-ocr tesseract-ocr-chi-sim && rm -rf /var/lib/apt/lists/*
 RUN pip install --no-cache-dir -r requirements.txt
 
 # 后端源码
