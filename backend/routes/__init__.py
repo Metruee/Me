@@ -6,6 +6,7 @@ from . import report
 from . import skills
 from . import settings
 from . import config
+from . import experts
 from . import models
 from . import uploads
 from . import memory as memory_routes

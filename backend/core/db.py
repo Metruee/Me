@@ -38,6 +38,17 @@ def init_db():
     """初始化数据库表结构（7 张核心表）"""
     db = get_db()
     db.executescript("""
+        CREATE TABLE IF NOT EXISTS experts (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            avatar TEXT DEFAULT '',
+            system_prompt_file TEXT DEFAULT '',
+            summon_phrase TEXT DEFAULT '',
+            response_phrase TEXT DEFAULT '',
+            domain TEXT DEFAULT 'all',
+            is_enabled INTEGER DEFAULT 1,
+            created_at TEXT DEFAULT (datetime('now'))
+        );
         CREATE TABLE IF NOT EXISTS conversations(
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             session_id TEXT NOT NULL DEFAULT 'default',
@@ -126,4 +137,22 @@ def init_db():
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
     """)
+    # Seed default experts
+    experts_seed = [
+        ("taishiling","太史令","📜","all","史官在侧，秉笔直书。","太史令在此。你的言行，我将如实录于竹帛。"),
+        ("zhongkui","钟馗","⚔️","自我核心","三尺青锋，照我肝胆。","心中有鬼，方须照剑。你是来伏魔的，还是来求饶的？"),
+        ("chiyou","蚩尤","🐉","事业","兵主旗下，雾散云开。","说敌情。畏刀避剑之人，不配站在我的旗下。"),
+        ("bigan","比干","⚖️","财富","玲珑七窍，公断无私。","我无心，故不偏。把你那笔糊涂账，摊开来。"),
+        ("tanlang","贪狼","🐺","人性","贪狼吞月，欲念昭然。","你身上每一寸欲望，都瞒不过我。说吧，这次想喂养哪一个？"),
+        ("zaojun","司命灶君","🔥","亲密关系","灶火明堂，司命在场。","家宅之事，善恶功过，我记下了。从实道来。"),
+        ("qibo","岐伯","🌿","健康","上古天真，问于天师。","身乃心之宅。你哪里失了调和，从实说来。"),
+        ("cangjie","仓颉","🏺","自知","鸟兽蹄爪，皆有其迹。","你看到了什么？是河底的石头，还是水面上的波纹？"),
+    ]
+    from core.config import SKILLS_DIR
+    for eid, name, avatar, domain, summon, resp in experts_seed:
+        skill_file = f"{SKILLS_DIR}/me_experts/{eid}.md"
+        db.execute(
+            "INSERT OR IGNORE INTO experts(id,name,avatar,domain,summon_phrase,response_phrase,system_prompt_file) VALUES(?,?,?,?,?,?,?)",
+            [eid, name, avatar, domain, summon, resp, skill_file]
+        )
     db.commit()

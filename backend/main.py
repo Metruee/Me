@@ -23,7 +23,7 @@ from core.db import get_db, init_db
 from routes import (
     chat, sessions, archive, daoben, report, skills,
     settings, uploads, memory as memory_routes, export,
-    config, models,
+    config, models, experts,
 )
 
 logging.basicConfig(level=logging.INFO)
@@ -55,6 +55,7 @@ app.include_router(memory_routes.router, prefix="/api")
 app.include_router(export.router, prefix="/api")
 app.include_router(config.router, prefix="/api")
 app.include_router(models.router, prefix="/api")
+app.include_router(experts.router, prefix="/api")
 
 # ═══ 定时复盘调度器 ══════════════════════════════════════
 _scheduler_stop = threading.Event()
