@@ -1,30 +1,17 @@
-# Me · 自知 — Docker Compose（多阶段构建，一条命令启动）
-#
-# 启动：
-#   1. 创建 .env 文件（填入 LLM 配置）
-#   2. docker compose up -d
-#   3. 访问 http://你的NAS_IP:6868
-#
-# 升级：
-#   docker compose down && docker compose up -d --build
-#   数据不会丢失（me_data/ 和 reports/ 都在宿主机上）
-#
-# 注意：
-#   - 首次启动会自动构建前端（npm install + build）和后端，无需手动操作
-#   - 需要安装 Docker 和 Docker Compose
-
 services:
   me:
     build:
       context: .
       dockerfile: backend/Dockerfile
     container_name: me
-    env_file:
-      - .env
     environment:
       - ME_HOME=/app/me_data
       - ME_APP_ROOT=/app
       - ME_STATIC_DIR=/app/static
+      - LLM_API_BASE=http://192.168.1.100:11434/v1
+      - LLM_MODEL=qwen2.5:7b
+      - EMBEDDING_API_BASE=http://192.168.1.100:11434/v1
+      - EMBEDDING_MODEL=nomic-embed-text
     ports:
       - "6868:6868"
     volumes:
