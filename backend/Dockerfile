@@ -18,11 +18,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends poppler-utils t
 RUN pip install --no-cache-dir -r requirements.txt
 
 # 后端源码
-COPY backend/main.py .
+COPY backend/ ./backend/
+RUN mkdir -p /app/backend
 
 # 前端构建产物（从第一阶段复制）
 COPY --from=frontend-builder /src/dist/ /app/static/
 
+ENV PYTHONPATH=/app/backend
 EXPOSE 6868
 
-CMD ["python", "main.py"]
+CMD ["python", "backend/main.py"]
