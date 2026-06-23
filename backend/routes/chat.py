@@ -130,6 +130,7 @@ def _classify_theme(text: str) -> str:
 
 
 def _llm_archive_summarize(db, session_id: str, expert_id: str) -> dict:
+    logger.info(f"[LLM链路] api_base={llm.api_base} model={llm.model} configured={bool(llm.model)}")
     if not llm.is_configured():
         return {}
     recent = db.execute(
@@ -340,6 +341,7 @@ def chat(req: ChatRequest):
 
     # ══ 5. 调用 LLM ═══
     try:
+        logger.info(f"[LLM链路-chat] api_base={llm.api_base} model={llm.model} configured={bool(llm.model)}")
         if not llm.is_configured():
             raise Exception("LLM 模型未配置")
         llm_reply = _chat_with_tools(

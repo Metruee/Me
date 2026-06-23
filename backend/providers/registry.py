@@ -58,6 +58,7 @@ class LLMConfig:
         for attempt in range(2):
             try:
                 t = timeout if attempt == 0 else min(timeout + 120, 300)
+                logger.info(f"[LLM调用] url={base}/chat/completions model={self.model} messages_count={len(messages)} tools={bool(tools)}")
                 with urllib.request.urlopen(req, timeout=t) as resp:
                     data = json.loads(resp.read())
                     msg = data["choices"][0]["message"]
