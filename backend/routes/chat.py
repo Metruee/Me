@@ -23,45 +23,44 @@ router = APIRouter()
 # ─── Helper: 获取有效专家 ID ──────────────────────
 
 def _get_valid_expert_ids() -> list:
-    db = get_db()
+    """读取所有有效 expert_id（内置 + 技能注册的自定义）"""
+    builtin = list(EXPERT_DOMAINS.keys())
     try:
-        rows = db.execute("SELECT id FROM skills WHERE enabled=1 AND id LIKE 'expert_%'").fetchall()
-        db.close()
-        builtin = list(EXPERT_DOMAINS.keys())
-        return builtin + [r["id"] for r in rows]
+        import sqlite3
+        from core.config import DB_PATH
+        _c = sqlite3.connect(str(DB_PATH))
+        _c.row_factory = sqlite3.Row
+        _rows = _c.execute("SELECT id FROM skills WHERE enabled=1 AND id LIKE 'expert_%'").fetchall()
+        _c.close()
+        return builtin + [_r["id"] for _r in _rows]
     except:
-        db.close()
-        return list(EXPERT_DOMAINS.keys())
+        return builtin
 
 
 # ─── 自动专家路由 ────────────────────────────────
 
 def _auto_route_expert(message: str, session_id: str) -> Optional[str]:
-    """检测用户消息是否需要调用其他专家（自动路由 + 召唤检测）"""
-    # 召唤检测
-    from core.models import EXPERT_SUMMON
-    for eid, sname in EXPERT_SUMMON.items():
-        if sname in message and len(message) < 15:
-            return eid
-    # LLM 分类路由
-    db = get_db()
+    # LLM 分类路由（使用独立连接，不干扰 chat() 的 db handle）
+    import sqlite3
+    from core.config import DB_PATH
     try:
-        api_base, model = None, None
-        r1 = db.execute("SELECT value FROM settings WHERE key='llm_api_base'").fetchone()
-        r2 = db.execute("SELECT value FROM settings WHERE key='llm_model'").fetchone()
-        if r1: api_base = r1["value"]
-        if r2: model = r2["value"]
+        conn = sqlite3.connect(str(DB_PATH))
+        conn.row_factory = sqlite3.Row
+        r1 = conn.execute("SELECT value FROM settings WHERE key='llm_api_base'").fetchone()
+        r2 = conn.execute("SELECT value FROM settings WHERE key='llm_model'").fetchone()
+        api_base = r1["value"] if r1 else None
+        model = r2["value"] if r2 else None
+        conn.close()
         if not model:
             return None
         valid_ids = _get_valid_expert_ids()
-        # 构建分类 prompt
-        domain_descs = {eid: f"{eid}({domain})" for eid, domain in EXPERT_DOMAINS.items()
-                        if eid in valid_ids}
-        # 从技能表加载扩展专家
+        domain_descs = {eid: f"{eid}({domain})" for eid, domain in EXPERT_DOMAINS.items() if eid in valid_ids}
         try:
-            rows = db.execute("SELECT id, label, description FROM skills WHERE enabled=1 AND id LIKE 'expert_%'").fetchall()
-            for r in rows:
+            conn2 = sqlite3.connect(str(DB_PATH))
+            conn2.row_factory = sqlite3.Row
+            for r in conn2.execute("SELECT id, label, description FROM skills WHERE enabled=1 AND id LIKE 'expert_%'").fetchall():
                 domain_descs[r["id"]] = f"{r['id']}({r['label'] or '自定义专家'})"
+            conn2.close()
         except:
             pass
         domain_text = ", ".join(f"{k}: {v}" for k, v in domain_descs.items())
@@ -74,10 +73,7 @@ def _auto_route_expert(message: str, session_id: str) -> Optional[str]:
             return result
     except:
         pass
-    finally:
-        db.close()
     return None
-
 
 # ─── 智能归档 ────────────────────────────────────
 
@@ -341,8 +337,6 @@ def chat(req: ChatRequest):
                 })
         except:
             pass
-
-    messages.append({"role": "user", "content": req.message})
 
     # ══ 5. 调用 LLM ═══
     try:

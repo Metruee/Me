@@ -58,12 +58,12 @@ def delete_session(session_id: str):
 
 
 @router.get("/sessions/{session_id}/history")
-def get_session_history(session_id: str):
+def get_session_history(session_id: str, limit: int = 200):
     db = get_db()
     rows = db.execute(
         "SELECT role, content, expert_id, created_at FROM conversations WHERE session_id=? ORDER BY id ASC",
         [session_id]
-    ).fetchall()
+    ).fetchall()[:limit]
     db.close()
     return [dict(r) for r in rows]
 

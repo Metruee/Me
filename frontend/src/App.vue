@@ -169,7 +169,7 @@ function renameSession(id: string, label: string) {
 // 恢复历史对话
 async function restoreHistory() {
   try {
-    const res = await fetch(`/api/history?session_id=${sessionId.value}&limit=200`)
+    const res = await fetch(`/api/sessions/${sessionId.value}/history`)
     if (!res.ok) return
     const data = await res.json()
     if (!Array.isArray(data) || data.length === 0) return
