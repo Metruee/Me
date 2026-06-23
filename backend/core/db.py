@@ -137,6 +137,20 @@ def init_db():
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
     """)
+    # Seed default settings
+    from .config import LLM_BASE, LLM_MODEL
+    defaults = [
+        ("llm_api_base", LLM_BASE),
+        ("llm_model", LLM_MODEL),
+        ("embedding_api_base", LLM_BASE),
+        ("embedding_model", ""),
+        ("auto_archive", "true"),
+        ("similarity_threshold", "0.6"),
+        ("chat_history_rounds", "10"),
+    ]
+    for k, v in defaults:
+        db.execute("INSERT OR IGNORE INTO settings(key,value) VALUES(?,?)", [k, v])
+
     # Seed default experts
     experts_seed = [
         ("taishiling","太史令","📜","all","史官在侧，秉笔直书。","太史令在此。你的言行，我将如实录于竹帛。"),

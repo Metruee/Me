@@ -18,18 +18,20 @@ class LLMConfig:
         self.model: str = LLM_MODEL
 
     def reload(self):
-        db = get_db()
         try:
-            r1 = db.execute("SELECT value FROM settings WHERE key='llm_api_base'").fetchone()
-            r2 = db.execute("SELECT value FROM settings WHERE key='llm_model'").fetchone()
+            import sqlite3
+            from .config import DB_PATH
+            conn = sqlite3.connect(str(DB_PATH))
+            conn.row_factory = sqlite3.Row
+            r1 = conn.execute("SELECT value FROM settings WHERE key='llm_api_base'").fetchone()
+            r2 = conn.execute("SELECT value FROM settings WHERE key='llm_model'").fetchone()
             if r1 and r1["value"]:
                 self.api_base = r1["value"]
             if r2 and r2["value"]:
                 self.model = r2["value"]
+            conn.close()
         except:
             pass
-        finally:
-            db.close()
 
     def chat(self, messages: list, tools: Optional[list] = None,
              temperature: float = 0.7, max_tokens: int = 2048,
@@ -147,18 +149,20 @@ class EmbeddingConfig:
         self.model: str = ""
 
     def reload(self):
-        db = get_db()
         try:
-            r1 = db.execute("SELECT value FROM settings WHERE key='embedding_api_base'").fetchone()
-            r2 = db.execute("SELECT value FROM settings WHERE key='embedding_model'").fetchone()
+            import sqlite3
+            from .config import DB_PATH
+            conn = sqlite3.connect(str(DB_PATH))
+            conn.row_factory = sqlite3.Row
+            r1 = conn.execute("SELECT value FROM settings WHERE key='embedding_api_base'").fetchone()
+            r2 = conn.execute("SELECT value FROM settings WHERE key='embedding_model'").fetchone()
             if r1 and r1["value"]:
                 self.api_base = r1["value"]
             if r2 and r2["value"]:
                 self.model = r2["value"]
+            conn.close()
         except:
             pass
-        finally:
-            db.close()
 
     def embed(self, text: str) -> Optional[list]:
         """生成文本向量"""
