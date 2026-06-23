@@ -1,0 +1,11 @@
+.git
+node_modules
+frontend/node_modules
+frontend/dist
+__pycache__
+*.pyc
+.DS_Store
+chroma_data
+me_data
+reports
+data
