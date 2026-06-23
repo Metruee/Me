@@ -50,6 +50,11 @@ class LLMConfig:
 
     def reload(self):
         try:
+            # 从 config.yaml 读取配置
+            cfg = self._load_config()
+            self.api_base = cfg.get("base_url", "").strip() or os.environ.get("LLM_API_BASE", "")
+            self.model = cfg.get("model", "").strip() or os.environ.get("LLM_MODEL", "")
+            # DB 兼容覆盖
             import sqlite3
             from .config import DB_PATH
             conn = sqlite3.connect(str(DB_PATH))
