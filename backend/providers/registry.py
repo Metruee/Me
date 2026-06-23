@@ -14,8 +14,39 @@ logger = logging.getLogger("me-backend")
 class LLMConfig:
     """LLM 配置，从 settings 表动态读取"""
     def __init__(self):
-        self.api_base: str = LLM_BASE
-        self.model: str = LLM_MODEL
+        # 优先从 config.yaml 读取 LLM 配置（支持 ${VAR:-default} 环境变量展开）
+        cfg = self._load_config()
+        self.api_base = cfg.get("base_url", "").strip() or os.environ.get("LLM_API_BASE", "")
+        self.model = cfg.get("model", "").strip() or os.environ.get("LLM_MODEL", "")
+
+    @staticmethod
+    def _load_config() -> dict:
+        """从 me_data/config.yaml 读取 provider 配置"""
+        import os
+        try:
+            import yaml
+            from pathlib import Path
+            me_home = os.environ.get("ME_HOME", "/app/me_data")
+            cfg_path = Path(me_home) / "config.yaml"
+            if cfg_path.exists():
+                raw = cfg_path.read_text(encoding="utf-8")
+                data = yaml.safe_load(raw) or {}
+                provider = data.get("provider", {}) or {}
+                # 展开 ${VAR:-default} 环境变量引用
+                import re
+                def _resolve(val):
+                    if not isinstance(val, str):
+                        return val
+                    def replacer(m):
+                        var = m.group(1)
+                        default = m.group(2) or ""
+                        return os.environ.get(var, default)
+                    return re.sub(r'\${([^:}]+):-([^}]*)\}', replacer, val)
+                return {k: _resolve(v) for k, v in provider.items()}
+        except Exception:
+            pass
+        return {}
+
 
     def reload(self):
         try:
