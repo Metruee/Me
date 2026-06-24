@@ -20,7 +20,7 @@ class LLMConfig:
     def reload(self):
         try:
             import sqlite3
-            from .config import DB_PATH
+            from core.config import DB_PATH
             conn = sqlite3.connect(str(DB_PATH))
             conn.row_factory = sqlite3.Row
             r1 = conn.execute("SELECT value FROM settings WHERE key='llm_api_base'").fetchone()
@@ -152,7 +152,7 @@ class EmbeddingConfig:
     def reload(self):
         try:
             import sqlite3
-            from .config import DB_PATH
+            from core.config import DB_PATH
             conn = sqlite3.connect(str(DB_PATH))
             conn.row_factory = sqlite3.Row
             r1 = conn.execute("SELECT value FROM settings WHERE key='embedding_api_base'").fetchone()
