@@ -413,13 +413,21 @@ def chat(req: ChatRequest):
                 "INSERT INTO knowledge_entries(id,theme_main,summary,original_text,expert_id) VALUES(?,?,?,?,?)",
                 [entry_id, theme, summary, full_text, current_expert_id]
             )
-            db.commit()
+            try:
+                db.commit()
+            except Exception as _e:
+                logger.error(f"[chat] commit失败: {_e}", exc_info=True)
+                db.rollback()
             threading.Thread(target=_kb_archive, args=(entry_id, theme, summary, full_text)).start()
             archived = True
             archive_system_msg = archive_reason == "user_intent" and f"✅ 已归档到「{theme}」" or \
                 archive_reason == "file_upload" and f"📥 文件内容已归档到「{theme}」" or archive_system_msg
 
-    db.commit()
+    try:
+        db.commit()
+    except Exception as _e:
+        logger.error(f"[chat] final commit失败: {_e}", exc_info=True)
+        db.rollback()
     db.close()
     switch_type = "auto" if auto_expert_id else "none"
     return ChatResponse(
