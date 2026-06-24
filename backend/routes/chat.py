@@ -221,7 +221,10 @@ def _kb_search(query: str, domain: str = "", limit: int = 5) -> str:
     except Exception as e:
         logger.warning(f"ChromaDB search failed: {e}")
     if not entries:
-        db = get_db()
+        import sqlite3
+        from core.config import DB_PATH
+        _c = sqlite3.connect(str(DB_PATH))
+        _c.row_factory = sqlite3.Row
         try:
             words = [w for w in query.split() if len(w) > 1][:5]
             if words:
@@ -232,12 +235,12 @@ def _kb_search(query: str, domain: str = "", limit: int = 5) -> str:
                 for w in words:
                     params.extend([f"%{w}%", f"%{w}%"])
                 params.append(limit)
-                for r in db.execute(sql, params).fetchall():
+                for r in _c.execute(sql, params).fetchall():
                     entries.append(f"[{r['theme_main']}] {r['summary'][:200]}")
         except:
             pass
         finally:
-            db.close()
+            _c.close()
     return "\n".join(entries) if entries else ""
 
 
