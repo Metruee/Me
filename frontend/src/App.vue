@@ -222,7 +222,7 @@ function switchSession(id: string) {
 }
 
 async function deleteSession(id: string) {
-  try { await fetch(`/api/session/${id}`, { method: 'DELETE' }) } catch {}
+  try { await fetch(`/api/sessions/${id}`, { method: 'DELETE' }) } catch {}
   sessions.value = sessions.value.filter(s => s.id !== id)
   if (sessionId.value === id) {
     if (sessions.value.length) switchSession(sessions.value[0].id)

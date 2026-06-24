@@ -6,7 +6,6 @@ backend/data/
 backend/reports/
 backend/chroma_data/
 backend/tmp/
-backend/static/
 backend/__pycache__/
 chroma_data/
 reports/
@@ -59,3 +58,4 @@ logs/
 .vscode/
 *.sublime-workspace
 PRD.md
+.DS_Store

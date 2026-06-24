@@ -7,10 +7,6 @@ services:
     environment:
       - ME_HOME=/app/me_data
       - ME_STATIC_DIR=/app/static
-      - LLM_API_BASE=http://192.168.1.100:11434/v1
-      - LLM_MODEL=qwen2.5:7b
-      - EMBEDDING_API_BASE=http://192.168.1.100:11434/v1
-      - EMBEDDING_MODEL=nomic-embed-text
     ports:
       - "6868:6868"
     volumes:
