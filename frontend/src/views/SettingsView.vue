@@ -41,7 +41,7 @@
             <span class="label">Embedding 服务</span>
             <div style="display:flex;gap:8px;">
               <input v-model="editableConfig.embedding_api_base" style="flex:1;min-width:0;border:1px solid var(--hairline-strong);border-radius:var(--radius-sm);padding:6px 10px;font-size:var(--text-caption);" placeholder="与 LLM 接口相同" />
-              <button class="btn btn-primary" style="height:32px;font-size:12px;padding:0 12px;white-space:nowrap;flex-shrink:0;" @click="saveConfig">保存</button>
+              <button class="btn btn-primary" style="height:32px;font-size:12px;padding:0 12px;white-space:nowrap;flex-shrink:0;" @click="saveAndFetchModels">保存并拉取</button>
             </div>
             <div v-if="editableConfig.embedding_api_base && config.embedding_api_base === editableConfig.embedding_api_base" class="text-fine" style="color:var(--accent);">✓ 已保存: {{ editableConfig.embedding_api_base }}</div>
             <div v-else-if="editableConfig.embedding_api_base && config.embedding_api_base !== editableConfig.embedding_api_base" class="text-fine" style="color:var(--warning);">未保存</div>
@@ -54,6 +54,12 @@
                 <option v-for="m in embeddingModels" :key="m" :value="m">{{ m }}</option>
               </select>
               <button class="btn btn-primary" style="height:32px;font-size:12px;padding:0 12px;white-space:nowrap;flex-shrink:0;" @click="saveConfig">保存</button>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;margin-top:4px;">
+              <button class="btn btn-ghost" style="height:28px;font-size:11px;padding:0 8px;" @click="fetchModels" :disabled="modelsLoading">
+                {{ modelsLoading ? '⏳ 拉取中…' : '🔄 刷新模型列表' }}
+              </button>
+              <span v-if="embeddingModels.length" class="text-fine" style="color:var(--ink-muted);">{{ embeddingModels.length }} 个可用</span>
             </div>
             <div v-if="editableConfig.embedding_model && config.embedding_model === editableConfig.embedding_model" class="text-fine" style="color:var(--accent);">✓ 已保存: {{ editableConfig.embedding_model }}</div>
             <div v-else-if="editableConfig.embedding_model && config.embedding_model !== editableConfig.embedding_model" class="text-fine" style="color:var(--warning);">未保存</div>

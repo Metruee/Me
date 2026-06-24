@@ -10,8 +10,8 @@
       <div v-if="!loading && skills.length" class="skills-list">
         <div v-for="s in skills" :key="s.id" class="skill-card">
           <div class="skill-info">
-            <div class="skill-name">{{ s.name }}</div>
-            <div class="skill-desc">{{ s.description || (s.has_manifest ? '📄 已配置 SKILL.md' : '⚠️ 缺少清单文件') }}</div>
+            <div class="skill-name">{{ s.label }}</div>
+            <div class="skill-desc">{{ s.description || '暂无描述' }}</div>
           </div>
           <button
             class="btn btn-ghost"
@@ -57,8 +57,7 @@ import { ref, onMounted } from 'vue'
 
 interface Skill {
   id: string
-  name: string
-  has_manifest: boolean
+  label: string
   description: string
   enabled: boolean
 }
@@ -131,7 +130,7 @@ function onDrop(e: DragEvent) {
 }
 
 async function removeSkill(s: Skill) {
-  if (!confirm(`确定删除技能「${s.name}」？\n\n⚠️ 此操作将从系统中永久移除该技能及其所有文件。\n后续若需继续使用，需要重新上传。`)) return
+  if (!confirm(`确定删除技能「${s.label}」？\n\n⚠️ 此操作将从系统中永久移除该技能及其所有文件。\n后续若需继续使用，需要重新上传。`)) return
   deletingId.value = s.id
   try {
     const res = await fetch(`/api/skills/${s.id}`, { method: 'DELETE' })

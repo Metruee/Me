@@ -117,8 +117,8 @@ const currentSessionName = computed(() => {
   return s ? s.label : '默认对话'
 })
 
-function createSession() {
-  const id = onCreateSession()
+async function createSession() {
+  const id = await onCreateSession()
   onSwitchSession(id)
   showSessionList.value = false
 }

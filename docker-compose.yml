@@ -6,7 +6,6 @@ services:
     container_name: me
     environment:
       - ME_HOME=/app/me_data
-      - ME_APP_ROOT=/app
       - ME_STATIC_DIR=/app/static
       - LLM_API_BASE=http://192.168.1.100:11434/v1
       - LLM_MODEL=qwen2.5:7b
@@ -16,5 +15,4 @@ services:
       - "6868:6868"
     volumes:
       - ./me_data:/app/me_data
-      - ./reports:/app/reports
     restart: unless-stopped

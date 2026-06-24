@@ -1,14 +1,21 @@
 <template>
   <div class="page">
     <div class="page-title">📋 复盘报告</div>
-    <button
-      class="btn btn-primary"
-      @click="generateReport"
-      :disabled="generating"
-      style="width:100%;margin-bottom:var(--space-sm)"
-    >
-      {{ generating ? '生成中…' : '生成新报告' }}
-    </button>
+    <div style="display:flex;gap:8px;margin-bottom:var(--space-sm)">
+      <select v-model="selectedPeriod" style="flex-shrink:0;border:1px solid var(--hairline-strong);border-radius:var(--radius-sm);padding:6px 10px;font-size:var(--text-caption);background:var(--surface-1);color:var(--text-primary);">
+        <option value="weekly">近 7 天</option>
+        <option value="biweekly">近 14 天</option>
+        <option value="monthly">近 30 天</option>
+      </select>
+      <button
+        class="btn btn-primary"
+        @click="generateReport"
+        :disabled="generating"
+        style="flex:1"
+      >
+        {{ generating ? '生成中…' : '生成新报告' }}
+      </button>
+    </div>
     <div v-if="genMsg" class="gen-msg">{{ genMsg }}</div>
 
     <div v-if="loading" class="empty-state">
@@ -51,6 +58,7 @@ interface ReportItem {
 
 const reports = ref<ReportItem[]>([])
 const loading = ref(true)
+const selectedPeriod = ref('weekly')
 const generating = ref(false)
 const genMsg = ref('')
 
@@ -98,7 +106,7 @@ async function generateReport() {
   generating.value = true
   genMsg.value = ''
   try {
-    const res = await fetch('/api/reports/generate', { method: 'POST' })
+    const res = await fetch('/api/reports/generate', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({period: selectedPeriod.value}) })
     const data = await res.json()
     if (data.ok && data.report_id) {
       await fetchReports()

@@ -26,6 +26,7 @@ def list_reports():
 
 @router.get("/reports/{report_id}")
 def get_report(report_id: str):
+    from fastapi.responses import FileResponse
     db = get_db()
     r = db.execute("SELECT * FROM reports WHERE id=?", [report_id]).fetchone()
     db.close()
@@ -33,7 +34,7 @@ def get_report(report_id: str):
         return {"ok": False, "error": "报告不存在"}
     path = REPORTS_DIR / r["filename"]
     if path.exists():
-        return {"ok": True, "html": path.read_text(encoding="utf-8"), "meta": dict(r)}
+        return FileResponse(path, media_type="text/html")
     return {"ok": False, "error": "文件已被删除"}
 
 
@@ -52,8 +53,20 @@ def delete_report(report_id: str):
 
 
 def _get_llm_config():
-    from core.config import LLM_BASE, LLM_MODEL
-    return LLM_BASE, LLM_MODEL
+    from core.config import LLM_BASE, LLM_MODEL, DB_PATH
+    import sqlite3
+    api_base, model = LLM_BASE, LLM_MODEL
+    try:
+        conn = sqlite3.connect(str(DB_PATH))
+        conn.row_factory = sqlite3.Row
+        r1 = conn.execute("SELECT value FROM settings WHERE key='llm_api_base'").fetchone()
+        r2 = conn.execute("SELECT value FROM settings WHERE key='llm_model'").fetchone()
+        if r1 and r1["value"]: api_base = r1["value"]
+        if r2 and r2["value"]: model = r2["value"]
+        conn.close()
+    except:
+        pass
+    return api_base, model
 
 
 def _markdown_to_html(md: str) -> str:
@@ -68,6 +81,12 @@ def _markdown_to_html(md: str) -> str:
                 in_list = False
             html_parts.append("<p><br></p>")
             continue
+        # 通用：markdown 粗体 **text** → <strong>text</strong>（所有内容类型）
+        stripped = re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", stripped)
+        # 清理未配对的残留 **
+        stripped = stripped.replace("**", "")
+        # 通用：冒号前文字加粗， "趋势：xxx" → "<strong>趋势</strong>：xxx"
+        stripped = re.sub(r'^([^<\s>]+)([：:])', r'<strong>\1</strong>\2', stripped)
         heading = re.match(r"^(#{1,3})\s+(.+)$", stripped)
         if heading:
             if in_list:
@@ -82,19 +101,18 @@ def _markdown_to_html(md: str) -> str:
                 in_list = True
             html_parts.append(f"<li>{stripped[2:]}</li>")
             continue
-        bold = re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", stripped)
         if in_list:
             html_parts.append("</ul>")
             in_list = False
-        html_parts.append(f"<p>{bold}</p>")
+        html_parts.append(f"<p>{stripped}</p>")
     if in_list:
         html_parts.append("</ul>")
     return "\n".join(html_parts)
 
 
-def _build_report_data(db) -> dict:
+def _build_report_data(db, period_days: int = 7) -> dict:
     now = datetime.now(timezone.utc)
-    week_ago = (now - timedelta(days=7)).strftime("%Y-%m-%dT%H:%M:%S")
+    period_start = (now - timedelta(days=period_days)).strftime("%Y-%m-%dT%H:%M:%S")
 
     kb_rows = db.execute(
         "SELECT theme_main, summary, original_text, created_at FROM knowledge_entries ORDER BY created_at DESC LIMIT 200"
@@ -139,7 +157,7 @@ def _build_report_data(db) -> dict:
             prev_summary = text[:2000]
 
     return {
-        "period_start": week_ago,
+        "period_start": period_start,
         "period_end": now.strftime("%Y-%m-%dT%H:%M:%S"),
         "knowledge_total": kb_total,
         "knowledge_by_theme": {
@@ -157,8 +175,37 @@ def _build_report_data(db) -> dict:
 
 def _generate_report_analysis(report_data: dict) -> str:
     api_base, model = _get_llm_config()
+
+    def _build_stat_report() -> str:
+        lines = ["## 数据概览"]
+        lines.append(f"- 知识条目总数：{report_data.get('knowledge_total', 0)}")
+        lines.append(f"- 道痕记录总数：{report_data.get('daoben_total', 0)}")
+        by_theme = report_data.get("knowledge_by_theme", {})
+        if by_theme:
+            lines.append("")
+            lines.append("## 按领域分布")
+            for t, info in by_theme.items():
+                lines.append(f"- **{t}**：{info['count']} 条")
+                for s in info.get("samples", [])[:3]:
+                    lines.append(f"  - {s[:60]}")
+        stones = report_data.get("top_stones", [])
+        if stones:
+            lines.append("")
+            lines.append("## 反复出现的心石")
+            for s in stones[:3]:
+                lines.append(f"- **{s['stone']}**（出现 {s['count']} 次）")
+        if report_data.get("greed_count") or report_data.get("fear_count"):
+            lines.append("")
+            lines.append("## 贪惧分布")
+            lines.append(f"- 记录到贪念：{report_data.get('greed_count', 0)} 次")
+            lines.append(f"- 记录到恐惧：{report_data.get('fear_count', 0)} 次")
+        lines.append("")
+        lines.append("---")
+        lines.append("*本报告基于数据统计生成，未包含 LLM 分析。在设置中配置 LLM 后可获得深度分析版。*")
+        return "\n".join(lines)
+
     if not model:
-        return "（LLM 未配置，无法生成报告）"
+        return _build_stat_report()
     data_json = json.dumps(report_data, ensure_ascii=False, indent=2)
     system_prompt = """你是「自知」平台的深度分析引擎。
 自知是一个帮助人观察自己思想河流的系统。用户通过对话、记录道痕、生成知识来留下痕迹，你的任务是把这些痕迹连成镜子——让他看到自己没看到的东西。
@@ -195,16 +242,19 @@ def _generate_report_analysis(report_data: dict) -> str:
             ],
             temperature=0.7, max_tokens=4096, timeout=300
         )
-        return result.get("content", "") or "（LLM 返回为空）"
+        return result.get("content", "") or _build_stat_report()
     except Exception as e:
         logger.warning(f"Report generation failed: {e}")
-        return "（报告生成失败）"
+        return _build_stat_report()
 
 
 @router.post("/reports/generate")
-def generate_report():
+def generate_report(body: dict = {}):
+    period_map = {"weekly": 7, "biweekly": 14, "monthly": 30}
+    p = body.get("period", "weekly")
+    period_days = body.get("period_days", period_map.get(p, 7))
     db = get_db()
-    report_data = _build_report_data(db)
+    report_data = _build_report_data(db, period_days=period_days)
     if report_data["knowledge_total"] == 0 and report_data["daoben_total"] == 0:
         db.close()
         return {"ok": True, "message": "知识库和道痕均为空，无法生成报告"}
@@ -237,6 +287,7 @@ def generate_report():
   <div class="report-body">{report_html}</div>
   <div class="footer">由 Me · 自知 自动生成 | 基于知识库 + 道痕 + 历史报告综合分析</div>
 </body></html>"""
+    kind_label = {"weekly": "周报", "biweekly": "双周报", "monthly": "月报"}.get(body.get("period", "weekly"), "报告")
     fname = f"review-{report_id}.html"
     file_path = REPORTS_DIR / fname
     file_path.write_text(html, encoding="utf-8")

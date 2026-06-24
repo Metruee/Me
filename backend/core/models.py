@@ -14,7 +14,7 @@ EXPERT_DOMAINS = {
     "tanlang": "人性",
     "zaojun": "亲密关系",
     "qibo": "健康",
-    "cangjie": "all",
+    "cangjie": "自知",
 }
 
 EXPERT_SUMMON = {

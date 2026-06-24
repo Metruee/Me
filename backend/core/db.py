@@ -137,6 +137,31 @@ def init_db():
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
     """)
+    # -- Schema migration: skills 表旧版 (name/has_manifest) → 新版 (label/description/...) --
+    try:
+        cols = [r[1] for r in db.execute("PRAGMA table_info(skills)").fetchall()]
+        if "label" not in cols:
+            db.executescript(
+                "ALTER TABLE skills RENAME TO skills_old;"
+                "CREATE TABLE skills("
+                "  id TEXT PRIMARY KEY,"
+                "  label TEXT DEFAULT '',"
+                "  description TEXT DEFAULT '',"
+                "  version INTEGER DEFAULT 1,"
+                "  enabled INTEGER DEFAULT 1,"
+                "  source_path TEXT DEFAULT '',"
+                "  trust_status TEXT DEFAULT 'review_required',"
+                "  tool_ids TEXT DEFAULT '',"
+                "  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
+                ");"
+                "INSERT INTO skills(id, label, enabled, created_at)"
+                "  SELECT id, name, enabled, created_at FROM skills_old;"
+                "DROP TABLE skills_old;"
+            )
+            db.commit()
+    except Exception:
+        pass
+
     # Seed default settings
     from .config import LLM_BASE, LLM_MODEL
     defaults = [

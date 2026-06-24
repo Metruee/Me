@@ -41,6 +41,9 @@ app.add_middleware(
 
 # ═══ Init ══════════════════════════════════════════════════
 init_db()
+# 启动时扫描 skills 目录，注册所有 SKILL.md 到 DB
+from routes.skills import scan_skills
+scan_skills()
 
 # ═══ Routes ════════════════════════════════════════════════
 app.include_router(chat.router, prefix="/api")

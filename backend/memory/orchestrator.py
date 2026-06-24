@@ -51,7 +51,10 @@ def write_note(kind: str, title: str, content: str,
 
 def list_notes(kind: str = "", expert_id: str = "", limit: int = NOTE_LIMIT) -> list:
     """列出笔记。kind/expert_id 为空则列出全部。"""
-    db = get_db()
+    import sqlite3
+    from core.config import DB_PATH
+    conn = sqlite3.connect(str(DB_PATH))
+    conn.row_factory = sqlite3.Row
     try:
         conditions = []
         params = []
@@ -62,25 +65,35 @@ def list_notes(kind: str = "", expert_id: str = "", limit: int = NOTE_LIMIT) -> 
             conditions.append("expert_id=?")
             params.append(expert_id)
         where = " WHERE " + " AND ".join(conditions) if conditions else ""
-        rows = db.execute(
+        rows = conn.execute(
             f"SELECT * FROM impressions{where} ORDER BY created_at DESC LIMIT ?",
             params + [limit]
         ).fetchall()
         return [dict(r) for r in rows]
     finally:
-        _close_db()
+        conn.close()
 
 def get_note_by_id(note_id: str) -> Optional[dict]:
-    db = get_db()
-    r = db.execute("SELECT * FROM impressions WHERE id=?", [note_id]).fetchone()
-    _close_db()
-    return dict(r) if r else None
+    import sqlite3
+    from core.config import DB_PATH
+    conn = sqlite3.connect(str(DB_PATH))
+    conn.row_factory = sqlite3.Row
+    try:
+        r = conn.execute("SELECT * FROM impressions WHERE id=?", [note_id]).fetchone()
+        return dict(r) if r else None
+    finally:
+        conn.close()
 
 def delete_note(note_id: str):
-    db = get_db()
-    db.execute("DELETE FROM impressions WHERE id=?", [note_id])
-    db.commit()
-    _close_db()
+    import sqlite3
+    from core.config import DB_PATH
+    conn = sqlite3.connect(str(DB_PATH))
+    conn.row_factory = sqlite3.Row
+    try:
+        conn.execute("DELETE FROM impressions WHERE id=?", [note_id])
+        conn.commit()
+    finally:
+        conn.close()
 
 
 # ═══════════════════════════════════════════════════════════
@@ -104,21 +117,24 @@ def write_event_record(session_id: str, expert_id: str,
     return {"id": rid, "summary": summary}
 
 def list_event_records(limit: int = 20, expert_id: str = "") -> list:
-    db = get_db()
+    import sqlite3
+    from core.config import DB_PATH
+    conn = sqlite3.connect(str(DB_PATH))
+    conn.row_factory = sqlite3.Row
     try:
         if expert_id:
-            rows = db.execute(
+            rows = conn.execute(
                 "SELECT * FROM event_records WHERE expert_id=? ORDER BY created_at DESC LIMIT ?",
                 [expert_id, limit]
             ).fetchall()
         else:
-            rows = db.execute(
+            rows = conn.execute(
                 "SELECT * FROM event_records ORDER BY created_at DESC LIMIT ?",
                 [limit]
             ).fetchall()
         return [dict(r) for r in rows]
     finally:
-        _close_db()
+        conn.close()
 
 
 # ═══════════════════════════════════════════════════════════

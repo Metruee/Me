@@ -301,6 +301,11 @@ def chat(req: ChatRequest):
     reply = ""
     llm_error = ""
 
+    # 先存用户消息，确保即使 LLM 调用失败记录也不丢失
+    db.execute("INSERT INTO conversations(session_id,role,content,expert_id) VALUES(?,?,?,?)",
+               [req.session_id, "user", req.message, current_expert_id])
+    db.commit()
+
     # ══ 1. 自动路由检测 ═══
     routed = _auto_route_expert(req.message, req.session_id)
     if routed and routed != current_expert_id:
@@ -329,6 +334,9 @@ def chat(req: ChatRequest):
         user_message=req.message,
         include_memory=(not auto_expert_id),  # 切换专家时不带入记忆
     )
+    # build_messages 内部调用了 memory.orchestrator.list_notes 等函数，
+    # 它们使用独立连接，不会影响本线程连接。刷新 db 作为安全防护。
+    db = get_db()
 
     # ══ 4. KB 增强检索（只在有历史时做）═══
     if not auto_expert_id and len(history) > 2:
@@ -359,9 +367,7 @@ def chat(req: ChatRequest):
         logger.warning(f"LLM chat failed: {e}")
         llm_error = "模型响应超时或不可用，已自动重试，请稍后再试"
 
-    # ══ 6. 存对话记录 ═══
-    db.execute("INSERT INTO conversations(session_id,role,content,expert_id) VALUES(?,?,?,?)",
-               [req.session_id, "user", req.message, current_expert_id])
+    # ══ 6. 存对话记录（助手消息）═══
     if reply and not llm_error:
         db.execute("INSERT INTO conversations(session_id,role,content,expert_id) VALUES(?,?,?,?)",
                    [req.session_id, "assistant", reply, current_expert_id])
